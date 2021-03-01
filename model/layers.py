@@ -218,7 +218,7 @@ class ClassDetector(tf.keras.layers.Layer):
             kernel_size: an integer or tuple/list of 2 integers, specifying 
                 the height and width of the 2D convolution window.
             depth_multiplier: an integer representing depth multiplier for
-                separable convolution layers in BiFPN nodes.
+                separable convolution layers.
             name: a string representing layer name.
         """
         super().__init__(name=name)
@@ -286,10 +286,10 @@ class BoxRegressor(tf.keras.layers.Layer):
                 boxes.
             depth: an integer representing number of separable
                 convolutions before final convolution.
-            kernel_size: an integer or tuple/list of 2 integers, specifying 
+            kernel_size: an integer or tuple/list of 2 integers, specifying
                 the height and width of the 2D convolution window.
             depth_multiplier: an integer representing depth multiplier for
-                separable convolution layers in BiFPN nodes.
+                separable convolution layers.
             name: a string representing layer name.
         """
         super().__init__(name=name)

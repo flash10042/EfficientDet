@@ -1,7 +1,7 @@
 """Implementation of anchor boxes generator and encoder of training data."""
 
 import tensorflow as tf
-from utils import compute_iou
+from .utils import compute_iou
 
 
 class Anchors():
@@ -90,7 +90,9 @@ class Anchors():
 class SamplesEncoder():
     """Enchoder of training batches."""
 
-    def __init__(self):
+    def __init__(self,
+                 aspect_ratios=[0.5, 1, 2],
+                 scales=[0, 1/3, 2/3]):
         self._anchors = Anchors()
         self._box_variance = tf.cast(
             [0.1, 0.1, 0.2, 0.2], tf.float32
