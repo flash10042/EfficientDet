@@ -48,7 +48,7 @@ class BiFPNLayerNode(tf.keras.layers.Layer):
         self.bn = tf.keras.layers.BatchNormalization()
         self.act = tf.keras.layers.Activation(tf.nn.silu)
 
-    def call(self, inputs):
+    def call(self, inputs, training=False):
         """Fuse features.
 
         Args:
@@ -63,7 +63,7 @@ class BiFPNLayerNode(tf.keras.layers.Layer):
         scaled_tensors = [inputs[i] * self.w[i] / norm for i in range(self.w.shape[0])]
         w_sum = tf.math.add_n(scaled_tensors)
         conv = self.conv2d(w_sum)
-        bn = self.bn(conv)
+        bn = self.bn(conv, training=training)
         return self.act(bn)
 
 
@@ -100,23 +100,21 @@ class BiFPNLayer(tf.keras.layers.Layer):
                                                  depth_multiplier=depth_multiplier,
                                                  name=f'step_2_level_{i}_node') for i in range(3, 8)]
 
-    def call(self, inputs):
+    def call(self, inputs, training=False):
         """Perfrom features fusing from different levels."""
 
-        assert len(inputs) == 5
-
         upscaled = self._upscale2d(inputs[-1])
-        first_step_outs = [self.first_step_nodes[-1]([inputs[-2], upscaled])]
+        first_step_outs = [self.first_step_nodes[-1]([inputs[-2], upscaled], training=training)]
         for i in range(2):
             upscaled = self._upscale2d(first_step_outs[i])
             fused = self.first_step_nodes[1-i]([inputs[-3-i], upscaled])
             first_step_outs.append(fused)
-
+ 
         upscaled = self._upscale2d(first_step_outs[-1])
         second_step_outs = [self.second_step_nodes[0]([inputs[0], upscaled])]
         for i in range(1, 4):
             downscaled = self._pool2d(second_step_outs[-1])
-            fused = self.second_step_nodes[i]([inputs[i], first_step_outs[3-i], downscaled])
+            fused = self.second_step_nodes[i]([inputs[i], first_step_outs[3-i], downscaled], training=training)
             second_step_outs.append(fused)
         downscaled = self._pool2d(second_step_outs[-1])
         fused = self.second_step_nodes[-1]([inputs[-1], downscaled])
@@ -180,15 +178,15 @@ class BiFPN(tf.keras.layers.Layer):
                                         pooling_strategy=pooling_strategy,
                                         name=f'BiFPN_Layer_{i}') for i in range(depth)]
 
-    def call(self, inputs):
+    def call(self, inputs, training=False):
         assert len(inputs) == 5
 
         squeezed = [self.convs_1x1[i](inputs[i]) for i in range(5)]
-        normalized = [self.bns[i](squeezed[i]) for i in range(5)]
+        normalized = [self.bns[i](squeezed[i], training=training) for i in range(5)]
         activated = [self.act(normalized[i]) for i in range(5)]
-        feature_maps = self.bifpn_layers[0](activated)
+        feature_maps = self.bifpn_layers[0](activated, training=training)
         for layer in self.bifpn_layers[1:]:
-            feature_maps = layer(feature_maps)
+            feature_maps = layer(feature_maps, training=training)
 
         return feature_maps
 
@@ -257,10 +255,10 @@ class ClassDetector(tf.keras.layers.Layer):
             name='class_preds'
         )
 
-    def call(self, inputs):
+    def call(self, inputs, training=False):
         for i in range(self.depth):
             inputs = self.convs[i](inputs)
-            inputs = self.bns[i](inputs)
+            inputs = self.bns[i](inputs, training=training)
             inputs = self.act(inputs)
         class_output = self.classes(inputs)
 
@@ -327,10 +325,10 @@ class BoxRegressor(tf.keras.layers.Layer):
             name='box_preds'
         )
 
-    def call(self, inputs):
+    def call(self, inputs, training=False):
         for i in range(self.depth):
             inputs = self.convs[i](inputs)
-            inputs = self.bns[i](inputs)
+            inputs = self.bns[i](inputs, training=training)
             inputs = self.act(inputs)
         box_output = self.boxes(inputs)
 
